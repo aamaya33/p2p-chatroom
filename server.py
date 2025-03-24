@@ -5,14 +5,14 @@ from threading import Thread
 
 # Global list to track all connected peers
 peers = []
-
+# FIXME: add ability to talk to multiple peers at once
 def start_server(ip, port):
     """Run a server socket to accept incoming peer connections."""
     server = s.socket(s.AF_INET, s.SOCK_STREAM)
     server.setsockopt(s.SOL_SOCKET, s.SO_REUSEADDR, 1)
     server.bind((ip, port))
     server.listen(5)
-    print(f"Listening for peers on {ip}:{port}...")
+    # print(f"Listening for peers on {ip}:{port}...")
 
     while True:
         conn, addr = server.accept()
@@ -27,7 +27,9 @@ def handle_peer(conn, addr):
         while True:
             message = conn.recv(2048).decode()
             if message:
-                print(f"\n<{addr[0]}> {message}")
+                # clear current line to display message and make things flow nicely 
+                print("\r\033[K", end="")
+                print(f"\r{message}\n(You): ", end="")
                 broadcast(f"<{addr[0]}> {message}", conn)
             else:
                 remove_peer(conn)
@@ -41,7 +43,7 @@ def broadcast(message, sender_conn):
         if peer != sender_conn:
             try:
                 peer.send(message.encode())
-            except:
+            except: # might have to remove this piece of logic espeically if we want to send messages to peers even when they disconnect
                 remove_peer(peer)
 
 def remove_peer(conn):
@@ -57,8 +59,9 @@ def connect_to_peer(ip, port):
         sock.connect((ip, port))
         peers.append(sock)
         print(f"Connected to {ip}:{port}")
-        # Start thread to handle incoming messages from this peer
+        # start new thread for new person 
         Thread(target=handle_peer, args=(sock, (ip, port)), daemon=True).start()
+        
     except Exception as e:
         print(f"Connection failed: {e}")
 
@@ -66,16 +69,17 @@ if __name__ == "__main__":
     if len(sys.argv) != 3:
         print("Usage: python3 p2p.py <IP> <PORT>")
         sys.exit(1)
-    
     ip = sys.argv[1]
     port = int(sys.argv[2])
+    print("Successfully started, listening on port", port, "\n")
+    print("Type '/connect <IP> <PORT>' to connect to a peer")
     
     # Start server thread
     Thread(target=start_server, args=(ip, port), daemon=True).start()
     
     # User input handling
     while True:
-        message = input("(Type '/connect <IP> <PORT>' or message): ")
+        message = input("(You): ")
         if message.lower() == "/quit":
             break
         elif message.startswith("/connect"):
