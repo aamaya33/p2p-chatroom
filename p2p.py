@@ -19,7 +19,7 @@ def start_server(ip, port):
         peers.append(conn)
         print("\r\033[K", end="") # get rid of the current line and print the new peer connected message
         print(f"\rNew peer connected: {addr}\n(You): ", end="")
-        # Start thread to handle messages from this peer
+        # Start thread to handle messages from new peer
         Thread(target=handle_peer, args=(conn, addr), daemon=True).start()
 
 def handle_peer(conn, addr):
@@ -74,8 +74,8 @@ if __name__ == "__main__":
     port = int(sys.argv[2])
     print("Successfully started, listening on port", port, "\n")
     print("Type '/connect <IP> <PORT>' to connect to a peer")
-    
-    # Start server thread
+    print("Type '/peers' to list connected peers")
+    print("Type '/quit' to exit\n")
     Thread(target=start_server, args=(ip, port), daemon=True).start()
     
     # User input handling
