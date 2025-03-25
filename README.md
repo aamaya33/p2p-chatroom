@@ -21,7 +21,7 @@ Example (local testing)
 
 python3 p2p.py 127.0.0.1 5000 (Warning: port 1234 has weird firewalls going on with it and can't be connected to.)
 
-##Future Work 
+## Future Work 
 
 - Offline message storage
 - Bettor Error Handling
