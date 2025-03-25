@@ -11,20 +11,24 @@ peers = []
 
 # port 1234 can't be connected to and leads to experiencing false positives
 
-def start_server(ip, port):
+def start_server(ip, port, shutdown_event=None):
     """Run a server socket to accept incoming peer connections."""
     server = s.socket(s.AF_INET, s.SOCK_STREAM)
     server.setsockopt(s.SOL_SOCKET, s.SO_REUSEADDR, 1)
     server.bind((ip, port))
     server.listen(5)
 
-    while True:
-        conn, addr = server.accept()
-        peers.append(conn)
-        print("\r\033[K", end="") # get rid of the current line and print the new peer connected message
-        print(f"\rNew peer connected: {addr}\n(You): ", end="")
-        # Start thread to handle messages from new peer
-        Thread(target=handle_peer, args=(conn, addr), daemon=True).start()
+    server.settimeout(0.5)  # Check for shutdown every 0.5 seconds
+    while not shutdown_event.is_set() if shutdown_event else True:
+        try:
+            conn, addr = server.accept()
+            peers.append(conn)
+            print("\r\033[K", end="") # get rid of the current line and print the new peer connected message
+            print(f"\rNew peer connected: {addr}\n(You): ", end="")
+            # Start thread to handle messages from new peer
+            Thread(target=handle_peer, args=(conn, addr), daemon=True).start()
+        except s.timeout:
+            continue
 
 def handle_peer(conn, addr):
     """Handle messages from a connected peer."""
@@ -66,9 +70,11 @@ def connect_to_peer(ip, port):
         print(f"Connected to {ip}:{port}")
         # start new thread for new person 
         Thread(target=handle_peer, args=(sock, (ip, port)), daemon=True).start()
+        return sock
         
     except Exception as e:
         print(f"Connection failed: {e}")
+        return None
 
 if __name__ == "__main__":
     if len(sys.argv) != 3:

@@ -12,21 +12,12 @@ def server():
     server_thread = Thread(target=start_server, args=(ip, port), daemon=True)
     server_thread.start()
     
-    # Wait briefly to ensure the server is up
     sleep(0.1)
     
     # Verify the server is listening
     assert is_port_open(ip, port), "Server failed to start"
     
     yield (ip, port)
-    
-    # Explicit cleanup (optional, since daemon=True will kill it anyway)
-    try:
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.connect((ip, port))
-            s.sendall(b"SHUTDOWN")  # If your server supports a shutdown command
-    except:
-        pass
 
 def find_free_port():
     """Helper function to find a free port."""
@@ -56,17 +47,37 @@ def test_multiple_connections(server):
     conn1.close()
     conn2.close()
 
-def test_message_exchange(server):
-    """Test sending and receiving messages."""
-    ip, port = server
-    conn = connect_to_peer(ip, port)
+def test_message_exchange():
+    """Test sending and receiving messages between two peers."""
+    # Start two servers on different ports
+    ip = "127.0.0.1"
+    port1 = find_free_port()
+    port2 = find_free_port()
+    
+    server1_thread = Thread(target=start_server, args=(ip, port1), daemon=True)
+    server1_thread.start()
+    sleep(0.1)
+    
+    server2_thread = Thread(target=start_server, args=(ip, port2), daemon=True)
+    server2_thread.start()
+    sleep(0.1)
+    
+    # Connect peer2 to peer1
+    conn = connect_to_peer(ip, port1)
     assert conn is not None
     
-    # Example: Send a message and expect a response
-    test_msg = b"TEST_MESSAGE"
-    conn.sendall(test_msg)
+    # Create a test client to connect to peer2 and receive the broadcast
+    test_client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    test_client.connect((ip, port2))
     
-    # Assuming your protocol echoes the message back
-    response = conn.recv(1024)
-    assert response == test_msg, "Message exchange failed"
+    # Send a message from peer2 to peer1
+    test_msg = "TEST_MESSAGE"
+    conn.send(test_msg.encode())
+    
+    # Receive the broadcasted message on the test client
+    response = test_client.recv(1024).decode()
+    assert test_msg in response, "Message broadcasting failed"
+    
+    conn.close()
+    test_client.close()
     
