@@ -3,9 +3,13 @@ import select
 import sys
 from threading import Thread
 
-peers = []
+peers = [] 
 # TODO: add DB logic to be able to 
 # TODO: add ability to talk to one person at a time? maybe? 
+# TODO: add ability to see peers connected -> peers as of now is list of sockets and i need to keep it like that to be able to send messages to the other socket object 
+# Alternative: Dictionary {socket: (ip, port)} to keep track of peers and their addresses or we just make a list with addresses and a list with sockets and we keep them in sync
+# connected_to_peer function needs to update addresses list 
+
 # port 1234 can't be connected to and leads to experiencing false positives
 
 def start_server(ip, port):
