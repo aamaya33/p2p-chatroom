@@ -3,21 +3,23 @@ import select
 import sys
 from threading import Thread
 
-# Global list to track all connected peers
 peers = []
-# FIXME: add ability to talk to multiple peers at once
+# TODO: add DB logic to be able to 
+# TODO: add ability to talk to one person at a time? maybe? 
+# port 1234 can't be connected to and leads to experiencing false positives
+
 def start_server(ip, port):
     """Run a server socket to accept incoming peer connections."""
     server = s.socket(s.AF_INET, s.SOCK_STREAM)
     server.setsockopt(s.SOL_SOCKET, s.SO_REUSEADDR, 1)
     server.bind((ip, port))
     server.listen(5)
-    # print(f"Listening for peers on {ip}:{port}...")
 
     while True:
         conn, addr = server.accept()
         peers.append(conn)
-        print(f"\nNew peer connected: {addr}")
+        print("\r\033[K", end="") # get rid of the current line and print the new peer connected message
+        print(f"\rNew peer connected: {addr}\n(You): ", end="")
         # Start thread to handle messages from this peer
         Thread(target=handle_peer, args=(conn, addr), daemon=True).start()
 
@@ -88,5 +90,7 @@ if __name__ == "__main__":
                 connect_to_peer(args[0], int(args[1]))
             else:
                 print("Invalid format. Use: /connect <IP> <PORT>")
+        elif message.startswith("/peers"):
+            print("Connected peers: ", peers)
         else:
             broadcast(f"<{ip}> {message}", None)
