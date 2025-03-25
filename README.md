@@ -1,4 +1,6 @@
 # P2P Chatroom  
+![Python Tests](https://github.com/aamaya3/p2p-chatroom/actions/workflows/python-package-conda.yml/badge.svg)
+
 
 A peer-to-peer (P2P) chat application built to test networking concepts and for a class mini-hackathon.  
 
