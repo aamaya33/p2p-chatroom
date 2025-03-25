@@ -1,5 +1,4 @@
 import socket as s
-import select
 import sys
 from threading import Thread
 
