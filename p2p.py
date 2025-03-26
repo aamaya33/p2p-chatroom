@@ -4,10 +4,14 @@ from threading import Thread
 
 peers = [] 
 # TODO: add DB logic to be able to 
+# TODO: Add ability to change name as well 
 # TODO: add ability to talk to one person at a time? maybe? 
 # TODO: add ability to see peers connected -> peers as of now is list of sockets and i need to keep it like that to be able to send messages to the other socket object 
 # Alternative: Dictionary {socket: (ip, port)} to keep track of peers and their addresses or we just make a list with addresses and a list with sockets and we keep them in sync
-# connected_to_peer function needs to update addresses list 
+# connected_to_peer function needs to update addresses list  
+# TODO: add request to each connection going outwards when connecting for the first time 
+# TODO: Remote execution of things? 
+# TODO: Make this an API? 
 
 # port 1234 can't be connected to and leads to experiencing false positives
 
@@ -91,8 +95,9 @@ if __name__ == "__main__":
     # User input handling
     while True:
         message = input("(You): ")
-        if message.lower() == "/quit":
+        if message.lower() == "/quit": # sometimes doesn't work
             break
+        # FIXME: Handle other /commands that might not be correct 
         elif message.startswith("/connect"):
             _, *args = message.split()
             if len(args) == 2:
