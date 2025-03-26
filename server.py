@@ -1,4 +1,5 @@
 import sqlalchemy as sql # time to lock in for the job 💯
+import socket as s
 
 
 # oh man this about to look crazy 
@@ -8,6 +9,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.orm import Mapped
 from sqlalchemy.orm import mapped_column
+from datetime import datetime
 
 
 '''
@@ -66,37 +68,73 @@ class InboundMessages(Base):
 
     id : Mapped[int] = mapped_column(sql.Integer, primary_key=True)
     destination: Mapped[str] = mapped_column(String)
+    d_port: Mapped[str] = mapped_column(String)
     source: Mapped[str] = mapped_column(String)
     message: Mapped[str] = mapped_column(String)
     timeStamp: Mapped[str] = mapped_column(sql.DateTime)
     isRead: Mapped[bool] = mapped_column(sql.Boolean)
 
     def __repr__(self):
-        return f"InboundMessage(id={self.id!r}, destination={self.destination!r}, source={self.source!r}, message={self.message!r}, timeStamp={self.timeStamp!r}, isRead={self.isRead!r})"
+        return f"InboundMessage(id={self.id!r}, destination={self.destination!r}, d_port={self.d_port!r},source={self.source!r}, message={self.message!r}, timeStamp={self.timeStamp!r}, isRead={self.isRead!r})"
 
 
 engine = create_engine("sqlite:///messages.db")
 Session = sql.orm.sessionmaker(bind=engine)
+# need to remake table since i changed the schema
+###############################
+Base.metadata.drop_all(engine) # there has to be a better way to update the schema
+###############################
 Base.metadata.create_all(engine)
 
 def store_inbound_messages(source, message):
     """Store inbound message in the database."""
+    # source = address -> (ip, port)
+    ip = source[0]
+    port = source[1]
+    message = message[len(f"<{ip}>"):].strip()
+    
     with Session() as session:
-        outbound = OutboundMessages(
+        inbound = InboundMessages(
             destination=s.gethostbyname(s.gethostname()),
-            source=source,
+            d_port = port,
+            source=ip,
             message=message,
-            timeStamp=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            timeStamp=datetime.now(),
+            isRead=True
+        )
+        session.add(inbound)
+        session.commit()
+
+def store_offline_message(destination, message):
+
+    with Session() as session: 
+        outbound = OutboundMessages(
+            destination=destination,
+            source=s.gethostbyname(s.gethostname()),
+            message=message,
+            timeStamp=datetime.now(),
             isRead=False
         )
         session.add(outbound)
         session.commit()
+    
+def get_pending_messages():
+    """Get all messages that haven't been sent."""
+    session = Session()
+    stmt = (
+        select(OutboundMessages.destination, OutboundMessages.message)
+        .where(OutboundMessages.isRead == False)
+    )
+    messages = session.execute(stmt).fetchall()
+    session.close()
+    return messages
+    
         
 def get_inbound_messages():
     """Get all messages that haven't been read."""
     session = Session()
     stmr = (
-        select(OutboundMessages)
+        select(InboundMessages.source, InboundMessages.message)
     )
     messages = session.execute(stmr).fetchall()
     session.close()

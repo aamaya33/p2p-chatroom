@@ -18,9 +18,9 @@ from datetime import datetime
 
 # port 1234 can't be connected to and leads to experiencing false positives
 
-
-peers = [] # {socket: (ip, port)} 
-offline_peers = {} # {socket: (ip, port)}
+# these will have to become a table in the db, but for later until im able to actually get this to work lol
+peers = {}  # {socket: {'ip': ip, 'port': port, 'status': 'online'}}
+offline_peers = {}  # {socket: {'ip': ip, 'port': port, 'status': 'offline'}}
 
 def start_server(ip, port, shutdown_event=None):
     """Run a server socket to accept incoming peer connections."""
@@ -33,7 +33,8 @@ def start_server(ip, port, shutdown_event=None):
     while not shutdown_event.is_set() if shutdown_event else True:
         try:
             conn, addr = server.accept()
-            peers.append(conn)
+            # TODO: check to see if they are in offline to send messages
+            peers[conn] = {'ip': addr[0], 'port': addr[1], 'status': 'online'}
             print("\r\033[K", end="") # get rid of the current line and print the new peer connected message
             print(f"\rNew peer connected: {addr}\n(You): ", end="")
             # Start thread to handle messages from new peer
@@ -50,37 +51,64 @@ def handle_peer(conn, addr):
                 # clear current line to display message and make things flow nicely 
                 print("\r\033[K", end="")
                 print(f"\r{message}\n(You): ", end="")
-                store_inbound_messages(addr, message)
+                store_inbound_messages(addr, message) # FIXME: when i recieve a message and this is called, it kills the connection between peers
                 broadcast(f"<{addr[0]}> {message}", conn)
             else:
                 remove_peer(conn)
                 break
-    except:
+    except Exception as e:
+        print(f"Error handling peer {addr}: {e}")
         remove_peer(conn)
+
+def update_peer_status(conn, status):
+    """Update the status of a peer."""
+
+    # this is def too basic, but we'll use it for now
+    if status == 'offline' and conn in peers: 
+        offline_peers[conn] = peers.pop(conn)
+        offline_peers[conn]['status'] = 'offline'
+        print("\r\033[K", end="")
+        print(f"Peer {offline_peers[conn]['ip']}:{offline_peers[conn]['port']} has gone offline")
+    elif status == 'online' and conn in offline_peers:
+        peers[conn] = offline_peers.pop(conn)
+        peers[conn]['status'] = 'online' 
+        print(f"Peer {peers[conn]['ip']}:{peers[conn]['port']} is online")
+
 
 def broadcast(message, sender_conn):
     """Send message to all peers except the sender."""
-    for peer in peers:
-        if peer != sender_conn:
+    failed = []
+    for peer_con in peers.keys():
+        # when someone disconnects sender_conn = None -> failed not getting updated 
+        if peer_con != sender_conn:
             try:
-                peer.send(message.encode())
-            except: # might have to remove this piece of logic espeically if we want to send messages to peers even when they disconnect
-                print("Error broadcasting message, user might be offline") # this is never getting hit 
-                remove_peer(peer)
+                peer_con.send(message.encode())
+            except: 
+                peer_adr = peers.get(peer_con, {})
+                failed.append(f"{peer_adr.get('ip', 'Unknown')}: {peer_adr.get('port', 'Unknown')}")
+                update_peer_status(peer_con, 'offline')
+    
+    # if offline_peers: 
+    #     for peer_con in offline_peers.keys():
+
+    #         print(f"Failed to send message to peers: {failed}")
 
 def remove_peer(conn):
     """Remove a disconnected peer."""
-    if conn in peers:
-        peers.remove(conn)
-        conn.close()
+    update_peer_status(conn, 'offline')
 
 def connect_to_peer(ip, port):
     """Initiate connection to another peer."""
     try:
         sock = s.socket(s.AF_INET, s.SOCK_STREAM)
         sock.connect((ip, port))
-        peers.append(sock)
+
+        peers[sock] = {'ip': ip, 'port': port, 'status': 'online'}
         print(f"Connected to {ip}:{port}")
+
+        # check to see if the peer was offline 
+        if sock in offline_peers: 
+            peers[sock] = offline_peers.pop(sock)
         # start new thread for new person 
         Thread(target=handle_peer, args=(sock, (ip, port)), daemon=True).start()
         return sock
@@ -97,12 +125,15 @@ def getopenport():
 
 
 if __name__ == "__main__":
-    
-    hostname = s.gethostname()
-    ip = s.gethostbyname(hostname)
-    port = getopenport()
+    # Either get ip/port from cmd line or get ip and open port
+    if len(sys.argv) == 3:
+        ip, port = sys.argv[1], int(sys.argv[2])
+    else:
+        hostname = s.gethostname()
+        ip = s.gethostbyname(hostname)
+        port = getopenport()
 
-    indent = "\n" * 25
+    indent = "\n" * 35
     print(indent,f"Successfully started. Welcom {ip} listening on port", port, "\n")
     print("Type '/connect <IP> <PORT>' to connect to a peer")
     print("Type '/peers' to list connected peers")
@@ -125,6 +156,18 @@ if __name__ == "__main__":
         elif message.startswith("/peers"):
             print("Connected peers: ", peers)
         elif message.startswith("/messages"):
-            print("Messages: ", get_inbound_messages())
+            messages = get_inbound_messages()
+            if not messages:
+                print("No messages")
+            else:
+                for idx, (source, message) in enumerate(messages, 1):
+                    print(f"  {idx}. From {source}: {message}")
+        elif message.startswith("/pending"):
+            pending = get_pending_messages()
+            if not pending: 
+                print("No pending messages")
+            else: 
+                for idx, (source, message) in enumerate(pending, 1):
+                    print(f"  {idx}. To {source}: {message}")
         else:
             broadcast(f"<{ip}> {message}", None)
