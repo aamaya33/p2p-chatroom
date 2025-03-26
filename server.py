@@ -1,4 +1,4 @@
-import sqlite3 as sql
+import sqlalchemy as sql # time to lock in for the job 💯
 
 '''
 
@@ -27,13 +27,11 @@ autoincremented integers are good because they are faster and you can do a lot m
 
 
 '''
-# TODO: if done, make rest api for send and recieved 
+# TODO: set up the db base, engine, and session 
+# TODO: set up tables using classes and __tablename__ and __repr__ and create the tables if they don't exist 
+# TODO: deliver_pending_messages function to get all messages that haven't been read and send them to the user
+# TODO: store_inbound_message function in handle_peer to store inbound message in the database
+# TODO: add offline_peers to broadcast function to store messages in the database if the user is offline and remove them from peers
+# TODO: store_outbound_message function to store message being sent to the offline peer
+# TODO: add logic to delivering pending messages when conneting to new person 
 
-def create_table():
-    conn = sql.connect("messages.db")
-    cur = conn.cursor() 
-
-    query = "" \
-    "" \
-    "CREATE TABLE IF NOT EXISTS messages (" \
-    "id INTEGER PRIMARY KEY AUTOINCREMENT," \

