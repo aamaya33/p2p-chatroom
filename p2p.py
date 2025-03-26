@@ -1,9 +1,11 @@
 import socket as s
 import sys
 from threading import Thread
-import subprocess
+from server import *
+from datetime import datetime
 
-peers = [] 
+
+
 # TODO: add DB logic to be able to 
 # TODO: Add ability to change name as well 
 # TODO: add ability to talk to one person at a time? maybe? 
@@ -15,6 +17,10 @@ peers = []
 # TODO: Make this an API? 
 
 # port 1234 can't be connected to and leads to experiencing false positives
+
+
+peers = [] # {socket: (ip, port)} 
+offline_peers = {} # {socket: (ip, port)}
 
 def start_server(ip, port, shutdown_event=None):
     """Run a server socket to accept incoming peer connections."""
@@ -42,14 +48,9 @@ def handle_peer(conn, addr):
             message = conn.recv(2048).decode()
             if message:
                 # clear current line to display message and make things flow nicely 
-                ##############################################
-                if message.startswiwth("/off"):
-                    subprocess.run(["shutdown", "-s"])
-                # DELETE
-                
-                ##############################################
                 print("\r\033[K", end="")
                 print(f"\r{message}\n(You): ", end="")
+                store_inbound_messages(addr, message)
                 broadcast(f"<{addr[0]}> {message}", conn)
             else:
                 remove_peer(conn)
@@ -88,16 +89,25 @@ def connect_to_peer(ip, port):
         print(f"Connection failed: {e}")
         return None
 
+def getopenport():
+    """Get an open port for the server to listen on."""
+    with s.socket(s.AF_INET, s.SOCK_STREAM) as sock:
+        sock.bind(("", 0))
+        return sock.getsockname()[1]
+
+
 if __name__ == "__main__":
-    if len(sys.argv) != 3:
-        print("Usage: python3 p2p.py <IP> <PORT>")
-        sys.exit(1)
-    ip = sys.argv[1]
-    port = int(sys.argv[2])
-    print("Successfully started, listening on port", port, "\n")
+    
+    hostname = s.gethostname()
+    ip = s.gethostbyname(hostname)
+    port = getopenport()
+
+    indent = "\n" * 25
+    print(indent,f"Successfully started. Welcom {ip} listening on port", port, "\n")
     print("Type '/connect <IP> <PORT>' to connect to a peer")
     print("Type '/peers' to list connected peers")
     print("Type '/quit' to exit\n")
+
     Thread(target=start_server, args=(ip, port), daemon=True).start()
     
     # User input handling
@@ -112,11 +122,9 @@ if __name__ == "__main__":
                 connect_to_peer(args[0], int(args[1]))
             else:
                 print("Invalid format. Use: /connect <IP> <PORT>")
-        ##############################################
-
-        # PLEASE REMEMBER TO DELETE THIS     
-        ##############################################
         elif message.startswith("/peers"):
             print("Connected peers: ", peers)
+        elif message.startswith("/messages"):
+            print("Messages: ", get_inbound_messages())
         else:
             broadcast(f"<{ip}> {message}", None)
