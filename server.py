@@ -82,7 +82,7 @@ engine = create_engine("sqlite:///messages.db")
 Session = sql.orm.sessionmaker(bind=engine)
 # need to remake table since i changed the schema
 ###############################
-Base.metadata.drop_all(engine) # there has to be a better way to update the schema
+# Base.metadata.drop_all(engine) # there has to be a better way to update the schema
 ###############################
 Base.metadata.create_all(engine)
 

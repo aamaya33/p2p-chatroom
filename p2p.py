@@ -1,6 +1,6 @@
 import socket as s
 import sys
-from threading import Thread
+from threading import Thread, Event
 from server import *
 from datetime import datetime
 
@@ -34,9 +34,16 @@ def start_server(ip, port, shutdown_event=None):
         try:
             conn, addr = server.accept()
             # TODO: check to see if they are in offline to send messages
-            peers[conn] = {'ip': addr[0], 'port': addr[1], 'status': 'online'}
-            print("\r\033[K", end="") # get rid of the current line and print the new peer connected message
-            print(f"\rNew peer connected: {addr}\n(You): ", end="")
+            if conn in offline_peers.keys(): 
+                peers[conn] = offline_peers.pop(conn)
+                print("\r\033[K", end="")
+                print(f"Peer {peers[conn]['ip']}:{peers[conn]['port']} is back online")
+                # send pending messages
+                peers[conn]['status'] = 'online'
+            else:
+                peers[conn] = {'ip': addr[0], 'port': addr[1], 'status': 'online'}
+                print("\r\033[K", end="") # get rid of the current line and print the new peer connected message
+                print(f"\rNew peer connected: {addr}\n(You): ", end="")
             # Start thread to handle messages from new peer
             Thread(target=handle_peer, args=(conn, addr), daemon=True).start()
         except s.timeout:
@@ -68,11 +75,11 @@ def update_peer_status(conn, status):
         offline_peers[conn] = peers.pop(conn)
         offline_peers[conn]['status'] = 'offline'
         print("\r\033[K", end="")
-        print(f"Peer {offline_peers[conn]['ip']}:{offline_peers[conn]['port']} has gone offline")
+        print(f"Peer {offline_peers[conn]['ip']}:{offline_peers[conn]['port']} has gone offline\n(You): ", end="")
     elif status == 'online' and conn in offline_peers:
         peers[conn] = offline_peers.pop(conn)
         peers[conn]['status'] = 'online' 
-        print(f"Peer {peers[conn]['ip']}:{peers[conn]['port']} is online")
+        print(f"Peer {peers[conn]['ip']}:{peers[conn]['port']} is online\n(You): ", end="")
 
 
 def broadcast(message, sender_conn):
@@ -139,12 +146,35 @@ if __name__ == "__main__":
     print("Type '/peers' to list connected peers")
     print("Type '/quit' to exit\n")
 
-    Thread(target=start_server, args=(ip, port), daemon=True).start()
+    shutdown_event = Event() 
+    server_thread = Thread(target=start_server, args=(ip,port,shutdown_event), daemon=True)
+    server_thread.start()
     
     # User input handling
     while True:
         message = input("(You): ")
         if message.lower() == "/quit": # sometimes doesn't work
+            print("Shutting down...")
+            shutdown_event.set()
+
+            # add all connections to offline_peers
+            for peer in peers.keys():
+                offline_peers[peer] = peers[peer]
+                
+            # close all connections
+            # FIXME: extra you: being printed when closing out
+            print("Closing connections...")
+            for peer in offline_peers.keys():
+                try:
+                    if offline_peers[peer]['status'] == 'online':
+                        peer.shutdown(s.SHUT_RDWR)
+                        peer.close()
+                        offline_peers[peer]['status'] = 'offline' # done for the sake of knowing where logic willl be on the db 
+                except Exception as e:
+                    print(f"Error closing connection: {e}")
+                    pass
+            
+            server_thread.join(timeout=5)
             break
         # FIXME: Handle other /commands that might not be correct 
         elif message.startswith("/connect"):
@@ -169,5 +199,6 @@ if __name__ == "__main__":
             else: 
                 for idx, (source, message) in enumerate(pending, 1):
                     print(f"  {idx}. To {source}: {message}")
+                print("\nYou: ", end="")
         else:
             broadcast(f"<{ip}> {message}", None)
