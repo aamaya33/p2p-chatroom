@@ -36,10 +36,10 @@ def start_server(ip, port, shutdown_event=None):
             matches = [peer for peer in offline_peers.values() if peer['ip'] == addr[0]]
 
             if matches:
-                peers[conn] = offline_peers.pop(conn)
+                peers[conn] = {'ip': addr[0], 'port': addr[1], 'status': 'online'}
                 print("\r\033[K", end="")
-                print(f"Peer {peers[conn]['ip']}:{peers[conn]['port']} is back online")
-                # send pending messages
+                print(f"Peer {peers[conn]['ip']}:{peers[conn]['port']} is back online\nYou: ", end="")
+                send_pending_messages(source=s.gethostbyname(s.gethostname())) 
                 peers[conn]['status'] = 'online'
             else:
                 peers[conn] = {'ip': addr[0], 'port': addr[1], 'status': 'online'}
@@ -83,24 +83,28 @@ def update_peer_status(conn, status):
         print(f"Peer {peers[conn]['ip']}:{peers[conn]['port']} is online\n(You): ", end="")
 
 
-def broadcast(message, sender_conn):
+def broadcast(message, sender=None):
     """Send message to all peers except the sender."""
-    failed = []
-    for peer_con in peers.keys():
-        # when someone disconnects sender_conn = None -> failed not getting updated 
-        if peer_con != sender_conn:
-            try:
-                peer_con.send(message.encode())
-            except: 
-                peer_adr = peers.get(peer_con, {})
-                failed.append(f"{peer_adr.get('ip', 'Unknown')}: {peer_adr.get('port', 'Unknown')}")
-                update_peer_status(peer_con, 'offline')
+    if peers:
+        for peer_con in peers.keys():
+            if peer_con != sender: 
+                try:
+                    peer_con.send(message.encode())
+                except: 
+                    peer_adr = peers.get(peer_con, {})
+                    print(f"Failed to send message to {peer_adr['ip']}:{peer_adr['port']}")
+                    update_peer_status(peer_con, 'offline')
     
-    # if offline_peers: 
-    #     for peer_con in offline_peers.keys():
-
-    #         print(f"Failed to send message to peers: {failed}")
-
+    elif offline_peers:
+        # if there are offline peers 
+        # get the IP and store the message to be sent store_pending_message
+        for addr in offline_peers.values():
+                ip = addr['ip']
+                try:
+                    store_pending_message(ip, message)
+                except Exception as e: 
+                    print(f"Failed to store message to {ip}: {e}")
+        
 def remove_peer(conn):
     """Remove a disconnected peer."""
     update_peer_status(conn, 'offline')
@@ -130,7 +134,23 @@ def getopenport():
     with s.socket(s.AF_INET, s.SOCK_STREAM) as sock:
         sock.bind(("", 0))
         return sock.getsockname()[1]
-
+    
+def send_pending_messages(source=None):
+    """Send all pending messages to their destinations."""
+    pending = get_pending_messages()
+    if not pending: 
+        return
+    
+    if source is None:
+        source = s.gethostbyname(s.gethostname())
+    
+    # this isn't the most robust logic ever, but this is good enough for the sake of this project
+    for destination, message in pending:
+        try:
+            broadcast(f"<{source}> {message}")
+            mark_message_as_read(destination, message)
+        except Exception as e:
+            print(f"Error sending pending message: {e}")
 
 if __name__ == "__main__":
     # Either get ip/port from cmd line or get ip and open port
@@ -185,7 +205,12 @@ if __name__ == "__main__":
             else:
                 print("Invalid format. Use: /connect <IP> <PORT>")
         elif message.startswith("/peers"):
-            print("Connected peers: ", peers)
+            if not peers:
+                print("No connected peers")
+            else:
+                print("Connected peers: ")
+                for idx, (peer, details) in enumerate(peers.items(), 1):
+                    print(f"  {idx}. {details['ip']}:{details['port']}")
         elif message.startswith("/messages"):
             messages = get_inbound_messages()
             if not messages:
@@ -200,6 +225,5 @@ if __name__ == "__main__":
             else: 
                 for idx, (source, message) in enumerate(pending, 1):
                     print(f"  {idx}. To {source}: {message}")
-                print("\nYou: ", end="")
         else:
-            broadcast(f"<{ip}> {message}", None)
+            broadcast(f"<{ip}> {message}")

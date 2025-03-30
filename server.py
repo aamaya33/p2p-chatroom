@@ -105,8 +105,9 @@ def store_inbound_messages(source, message):
         session.add(inbound)
         session.commit()
 
-def store_offline_message(destination, message):
+def store_pending_message(destination, message):
 
+    message = message[len(f"<{destination}>"):].strip()
     with Session() as session: 
         outbound = OutboundMessages(
             destination=destination,
@@ -129,6 +130,23 @@ def get_pending_messages():
     session.close()
     return messages
     
+def mark_message_as_read(destination, message):
+    """Mark message as read."""
+    session = Session()
+    stmt = (
+        select(OutboundMessages)
+        .where(OutboundMessages.destination == destination)
+        .where(OutboundMessages.message == message)
+    )
+    message = session.execute(stmt).fetchone()
+    
+    if not message: 
+        return
+    else: 
+        for msg in message:
+            msg.isRead = True
+            session.commit()
+    session.close()
         
 def get_inbound_messages():
     """Get all messages that haven't been read."""
