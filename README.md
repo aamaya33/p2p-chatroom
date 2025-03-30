@@ -7,11 +7,10 @@ A peer-to-peer (P2P) chat application built to test networking concepts and for 
 ## Features  
 - **Real-time messaging** – Chat between peers on different ports.  
 - **Basic terminal UI** – Simple but functional interface.  
-- **Offline messaging (WIP)** – Future goal: Store messages when a peer disconnects and deliver them upon reconnection (similar to WhatsApp).  
+- **Offline messaging** – Store messages when a peer disconnects and deliver them upon reconnection (similar to WhatsApp).  
 
 ## Limitations  
 - Uses Python (GIL limits threading efficiency).  
-- Tested only locally (`localhost`).  
 
 ## How to Run  
 1. Ensure Python 3 is installed.  
