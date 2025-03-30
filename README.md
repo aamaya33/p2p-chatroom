@@ -14,9 +14,12 @@ A peer-to-peer (P2P) chat application built to test networking concepts and for 
 
 ## How to Run  
 1. Ensure Python 3 is installed.  
-2. Run:  
+2. If you want to specify which port you want to use or run it locally, use:  
    ```sh
    python3 p2p.py <IP> <PORT>
+3. Or you can just run and automatically assign a port by using:
+   ```sh
+   python3 p2p.py
 
 Example (local testing) 
 
