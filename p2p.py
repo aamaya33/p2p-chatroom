@@ -5,8 +5,6 @@ from server import *
 from datetime import datetime
 
 
-
-# TODO: add DB logic to be able to 
 # TODO: Add ability to change name as well 
 # TODO: add ability to talk to one person at a time? maybe? 
 # TODO: add ability to see peers connected -> peers as of now is list of sockets and i need to keep it like that to be able to send messages to the other socket object 
@@ -18,9 +16,10 @@ from datetime import datetime
 
 # port 1234 can't be connected to and leads to experiencing false positives
 
-# these will have to become a table in the db, but for later until im able to actually get this to work lol
+# these will have to become a table in the db, but for later until im able to actually get this to work lol also wouldn't it be better to keep it locally cached?
+# seems like queries could be slow if we have to go to the db every time we want to check if a peer is online or offline
 peers = {}  # {socket: {'ip': ip, 'port': port, 'status': 'online'}}
-offline_peers = {}  # {socket: {'ip': ip, 'port': port, 'status': 'offline'}}
+offline_peers = {}  # {socket: {'ip': ip, 'port': port, 'status': 'offline'}} 
 
 def start_server(ip, port, shutdown_event=None):
     """Run a server socket to accept incoming peer connections."""
@@ -34,7 +33,9 @@ def start_server(ip, port, shutdown_event=None):
         try:
             conn, addr = server.accept()
             # TODO: check to see if they are in offline to send messages
-            if conn in offline_peers.keys(): 
+            matches = [peer for peer in offline_peers.values() if peer['ip'] == addr[0]]
+
+            if matches:
                 peers[conn] = offline_peers.pop(conn)
                 print("\r\033[K", end="")
                 print(f"Peer {peers[conn]['ip']}:{peers[conn]['port']} is back online")
