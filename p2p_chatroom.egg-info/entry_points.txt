@@ -1,2 +1,0 @@
-[console_scripts]
-p2p-chat = p2p:main
