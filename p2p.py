@@ -152,7 +152,7 @@ def send_pending_messages(source=None):
         except Exception as e:
             print(f"Error sending pending message: {e}")
 
-if __name__ == "__main__":
+def main():
     # Either get ip/port from cmd line or get ip and open port
     if len(sys.argv) == 3:
         ip, port = sys.argv[1], int(sys.argv[2])
@@ -227,3 +227,6 @@ if __name__ == "__main__":
                     print(f"  {idx}. To {source}: {message}")
         else:
             broadcast(f"<{ip}> {message}")
+
+if __name__ == "__main__":
+    main()
