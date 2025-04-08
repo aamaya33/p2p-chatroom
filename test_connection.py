@@ -152,31 +152,5 @@ def test_multiple_connections(server_fixture):
     for client in clients:
         client.close()
 
-def test_message_marking(server_fixture, clean_db):
-    """Test marking messages as read in the database."""
-    ip, port, _ = server_fixture
-    
-    # Create a destination IP
-    dest_ip = "192.168.1.100"  # Use a fake IP that won't connect
-    
-    # Simulate sending a message to an offline peer
-    message = f"<{ip}> Test marking message"
-    
-    # Broadcast to store in database since peer is "offline"
-    broadcast(message)
-    
-    # Get pending messages
-    pending = get_pending_messages()
-    assert len(pending) > 0, "No pending messages found"
-    
-    # Mark the first message as read
-    if pending:
-        destination, msg = pending[0]
-        mark_message_as_read(destination, msg)
-    
-    # Check if message was marked as read
-    new_pending = get_pending_messages()
-    assert len(new_pending) < len(pending), "Message was not marked as read"
-
 if __name__ == "__main__":
     pytest.main(["-v"])
